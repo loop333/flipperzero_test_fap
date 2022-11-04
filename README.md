@@ -1,2 +1,2 @@
-# test_fap
-flipper zero fap keeloq
+# Test Flipper Zero FAP with cli access
+
