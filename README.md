@@ -1,2 +1,2 @@
-# Test Flipper Zero FAP With CLI Access
+# Flipper Zero Test External Application (FAP) With CLI Access
 
