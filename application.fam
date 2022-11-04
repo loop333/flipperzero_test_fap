@@ -1,0 +1,11 @@
+App(
+    appid="radio",
+    name="Radio",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="radio_app",
+    requires=["gui", "subghz"],
+    stack_size=4*1024,
+    order=40,
+    fap_icon="../../assets/icons/Archive/sub1_10px.png",
+    fap_libs=["subghz", "toolbox"],
+)
