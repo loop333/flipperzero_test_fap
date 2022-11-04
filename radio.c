@@ -22,21 +22,6 @@ typedef struct {
     InputEvent input;
 } RadioEvent;
 
-struct MySubGhzWorker {
-    FuriThread* thread;
-    FuriStreamBuffer* stream;
-
-    volatile bool running;
-    volatile bool overrun;
-
-    LevelDuration filter_level_duration;
-    bool filter_running;
-    uint16_t filter_duration;
-
-    SubGhzWorkerOverrunCallback overrun_callback;
-    SubGhzWorkerPairCallback pair_callback;
-    void* context;
-};
 
 //struct MySubGhzKeystore {
 //    SubGhzKeyArray_t data;
