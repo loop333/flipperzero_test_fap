@@ -1,2 +1,2 @@
-# Test Flipper Zero FAP with cli access
+# Test Flipper Zero FAP With CLI Access
 
