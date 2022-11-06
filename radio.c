@@ -36,6 +36,8 @@ const SubGhzProtocolRegistry radio_protocol_registry = {
     .size = COUNT_OF(radio_protocol_registry_items)
 };
 
+bool running = true;
+
 static void radio_draw_callback(Canvas* canvas, void* ctx) {
     UNUSED(ctx);
     canvas_clear(canvas);
@@ -145,10 +147,13 @@ void radio_cli_command_rx(Cli* cli, FuriString* args, void* context) {
 
     // Wait for packets to arrive
     printf("Listening at %lu. Press CTRL+C to stop\r\n", frequency);
-    while (!cli_cmd_interrupt_received(cli)) {
+
+    while (running && !cli_cmd_interrupt_received(cli)) {
 //        printf("wait\r\n");
         furi_delay_ms(250);
     }
+
+    printf("Stopping\r\n")
 
     // Shutdown radio
     furi_hal_subghz_stop_async_rx();
@@ -208,6 +213,8 @@ int32_t radio_app(void* p) {
 
     RadioEvent event;
 
+    running = tue;
+
     while (1) {
         furi_check(furi_message_queue_get(event_queue, &event, FuriWaitForever) == FuriStatusOk);
         if (event.type == RadioEventTypeInput) {
@@ -216,6 +223,9 @@ int32_t radio_app(void* p) {
             }
         }
     }
+
+    running = false;
+    furi_delay_ms(250);
 
     cli_delete_command(cli, "radio");
     furi_record_close(RECORD_CLI);
