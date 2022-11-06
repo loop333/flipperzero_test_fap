@@ -213,7 +213,7 @@ int32_t radio_app(void* p) {
 
     RadioEvent event;
 
-    running = tue;
+    running = true;
 
     while (1) {
         furi_check(furi_message_queue_get(event_queue, &event, FuriWaitForever) == FuriStatusOk);
