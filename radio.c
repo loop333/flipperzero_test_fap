@@ -127,7 +127,7 @@ void radio_cli_command_rx(Cli* cli, FuriString* args, void* context) {
     subghz_worker_set_pair_callback(worker, (SubGhzWorkerPairCallback) subghz_receiver_decode);
 
     SubGhzReceiver* receiver = subghz_receiver_alloc_init(environment);
-//    subghz_receiver_set_filter(receiver, SubGhzProtocolFlag_Decodable);
+    subghz_receiver_set_filter(receiver, SubGhzProtocolFlag_Decodable);
     subghz_worker_set_context(worker, receiver);
     subghz_receiver_set_rx_callback(receiver, radio_cli_command_rx_callback, worker);
 
