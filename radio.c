@@ -1,16 +1,19 @@
 #include <cli/cli.h>
 #include <lib/toolbox/args.h>
 
-#include <lib/subghz/subghz_setting.h>
 #include <lib/subghz/subghz_worker.h>
 #include <lib/subghz/receiver.h>
 #include <lib/subghz/registry.h>
 #include <lib/subghz/protocols/protocol_items.h>
 
+//#include "protocols/test.h"
+
 #include <gui/gui.h>
 
 #define SUBGHZ_FREQUENCY_RANGE_STR "299999755...348000000 or 386999938...464000000 or 778999847...928000000"
 #define TAG "Radio"
+
+bool running = true;
 
 typedef enum {
     RadioEventTypeTick,
@@ -22,21 +25,21 @@ typedef struct {
     InputEvent input;
 } RadioEvent;
 
-
 //struct MySubGhzKeystore {
 //    SubGhzKeyArray_t data;
 //};
 
 const SubGhzProtocol* radio_protocol_registry_items[] = {
-    &subghz_protocol_keeloq
+    &subghz_protocol_keeloq,
+    &subghz_protocol_star_line,
+    &subghz_protocol_scher_khan,
+//    &protocol_test,
 };
 
 const SubGhzProtocolRegistry radio_protocol_registry = {
     .items = radio_protocol_registry_items,
     .size = COUNT_OF(radio_protocol_registry_items)
 };
-
-bool running = true;
 
 static void radio_draw_callback(Canvas* canvas, void* ctx) {
     UNUSED(ctx);
@@ -46,7 +49,6 @@ static void radio_draw_callback(Canvas* canvas, void* ctx) {
 }
 
 static void radio_input_callback(InputEvent* input_event, void* ctx) {
-//    printf("radio_input_callback\r\n");
     furi_assert(ctx);
     FuriMessageQueue* event_queue = ctx;
 
@@ -55,42 +57,28 @@ static void radio_input_callback(InputEvent* input_event, void* ctx) {
 }
 
 void radio_cli_command_print_usage() {
-//    printf("radio_cli_command_print_usage\r\n");
-
     printf("Usage:\r\n");
     printf("radio <cmd> <args>\r\n");
     printf("Cmd list:\r\n");
     printf("\trx <frequency in Hz>\t - Receive signal\r\n");
 }
 
-bool radio_protocol_decoder_base_get_string(SubGhzProtocolDecoderBase* decoder_base, FuriString* output) {
-//    printf("radio_protocol_decoder_base_get_string\r\n");
-    bool status = false;
+static void radio_cli_command_rx_callback(SubGhzReceiver* receiver, SubGhzProtocolDecoderBase* decoder_base, void* context) {
+    char buf[100];
+    size_t buf_cnt;
 
-    if (decoder_base->protocol && decoder_base->protocol->decoder && decoder_base->protocol->decoder->get_string) {
-        decoder_base->protocol->decoder->get_string(decoder_base, output);
-        status = true;
-    }
+    Cli* cli = context;
 
-    return status;
-}
-
-static void radio_cli_command_rx_callback(SubGhzReceiver* receiver,
-                                          SubGhzProtocolDecoderBase* decoder_base,
-                                          void* context) {
-//    printf("radio_cli_command_rx_callback\r\n");
-    UNUSED(context);
-
-    FuriString* text;
-    text = furi_string_alloc();
-    radio_protocol_decoder_base_get_string(decoder_base, text);
+    FuriString* text = furi_string_alloc();
+    subghz_protocol_decoder_base_get_string(decoder_base, text);
     subghz_receiver_reset(receiver);
-    printf("%s", furi_string_get_cstr(text));
+//    printf("%s", furi_string_get_cstr(text));
+    buf_cnt = snprintf(buf, sizeof(buf), "%s", furi_string_get_cstr(text));
+    cli_write(cli, (uint8_t*) buf, buf_cnt);
     furi_string_free(text);
 }
 
 void radio_cli_command_rx(Cli* cli, FuriString* args, void* context) {
-//    printf("radio_cli_command_rx\r\n");
     UNUSED(context);
 
     uint32_t frequency = 433920000;
@@ -129,7 +117,7 @@ void radio_cli_command_rx(Cli* cli, FuriString* args, void* context) {
     SubGhzReceiver* receiver = subghz_receiver_alloc_init(environment);
     subghz_receiver_set_filter(receiver, SubGhzProtocolFlag_Decodable);
     subghz_worker_set_context(worker, receiver);
-    subghz_receiver_set_rx_callback(receiver, radio_cli_command_rx_callback, worker);
+    subghz_receiver_set_rx_callback(receiver, radio_cli_command_rx_callback, cli);
 
     // Configure radio
     furi_hal_subghz_reset();
@@ -139,21 +127,22 @@ void radio_cli_command_rx(Cli* cli, FuriString* args, void* context) {
 
     furi_hal_power_suppress_charge_enter();
 
+    furi_hal_subghz_flush_rx();
     furi_hal_subghz_rx();
 
     // Prepare and start RX
     furi_hal_subghz_start_async_rx(subghz_worker_rx_callback, worker);
+
     subghz_worker_start(worker);
 
     // Wait for packets to arrive
+    running = true;
     printf("Listening at %lu. Press CTRL+C to stop\r\n", frequency);
-
     while (running && !cli_cmd_interrupt_received(cli)) {
-//        printf("wait\r\n");
         furi_delay_ms(250);
     }
-
-    printf("Stopping\r\n")
+    printf("Stopping\r\n");
+    running = false;
 
     // Shutdown radio
     furi_hal_subghz_stop_async_rx();
@@ -171,8 +160,6 @@ void radio_cli_command_rx(Cli* cli, FuriString* args, void* context) {
 }
 
 void radio_cli_command(Cli* cli, FuriString* args, void* context) {
-//    printf("radio_cli_command\r\n");
-
     FuriString* cmd;
     cmd = furi_string_alloc();
 
@@ -195,7 +182,6 @@ void radio_cli_command(Cli* cli, FuriString* args, void* context) {
 
 int32_t radio_app(void* p) {
     UNUSED(p);
-//    printf("radio_app\r\n");
 
     FuriMessageQueue* event_queue = furi_message_queue_alloc(8, sizeof(RadioEvent));
 
@@ -214,7 +200,6 @@ int32_t radio_app(void* p) {
     RadioEvent event;
 
     running = true;
-
     while (1) {
         furi_check(furi_message_queue_get(event_queue, &event, FuriWaitForever) == FuriStatusOk);
         if (event.type == RadioEventTypeInput) {
@@ -223,7 +208,6 @@ int32_t radio_app(void* p) {
             }
         }
     }
-
     running = false;
     furi_delay_ms(250);
 
